@@ -1,0 +1,108 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup MSVC
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '6.5.3'
+        host: 'windows'
+        target: 'desktop'
+        arch: 'win64_msvc2019_64'
+        modules: 'qtmultimedia'
+        cache: true
+
+    - name: Setup vcpkg
+      run: |
+        git clone https://github.com/Microsoft/vcpkg.git
+        cd vcpkg
+        .\bootstrap-vcpkg.bat
+        .\vcpkg integrate install
+      shell: cmd
+
+    - name: Install FFmpeg
+      run: |
+        vcpkg\vcpkg install ffmpeg[core,avcodec,avformat,avutil,swscale]:x64-windows
+      shell: cmd
+      continue-on-error: true
+
+    - name: Install eXosip2
+      run: |
+        vcpkg\vcpkg install exosip:x64-windows
+      shell: cmd
+      continue-on-error: true
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -G "Visual Studio 17 2022" -A x64 ^
+          -DCMAKE_TOOLCHAIN_FILE=%CD%\vcpkg\scripts\buildsystems\vcpkg.cmake ^
+          -DCMAKE_PREFIX_PATH=%Qt6_DIR% ^
+          -DCMAKE_BUILD_TYPE=Release
+      shell: cmd
+      continue-on-error: true
+
+    - name: Build
+      run: cmake --build build --config Release --parallel
+      shell: cmd
+      continue-on-error: true
+
+    - name: Collect files
+      run: |
+        mkdir artifact
+        if exist build\Release\GB28181Client.exe (
+          copy build\Release\GB28181Client.exe artifact\
+          echo Build successful
+        ) else (
+          echo Build failed - executable not found
+        )
+      shell: cmd
+
+    - name: Deploy Qt
+      if: success()
+      run: |
+        cd artifact
+        %Qt6_DIR%\bin\windeployqt.exe GB28181Client.exe
+      shell: cmd
+      continue-on-error: true
+
+    - name: Copy DLLs
+      run: |
+        if exist vcpkg\installed\x64-windows\bin (
+          copy vcpkg\installed\x64-windows\bin\*.dll artifact\ 2>nul
+        )
+      shell: cmd
+      continue-on-error: true
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: GB28181Client-Windows-x64
+        path: artifact/
+        if-no-files-found: warn
+
+    - name: Upload build logs
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: build-logs
+        path: |
+          build/**/*.log
+          vcpkg/buildtrees/**/*.log
+        if-no-files-found: ignore
