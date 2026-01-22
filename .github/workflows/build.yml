@@ -1,0 +1,101 @@
+name: Build GB28181Client
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup MSVC
+      uses: microsoft/setup-msbuild@v1.1
+
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
+
+    - name: Install dependencies
+      run: |
+        vcpkg install qt6-base:x64-windows
+        vcpkg install ffmpeg[core,avcodec,avformat,swscale]:x64-windows
+        vcpkg install exosip:x64-windows
+      shell: cmd
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -S . -G "Visual Studio 17 2022" -A x64 ^
+          -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake ^
+          -DCMAKE_BUILD_TYPE=Release
+      shell: cmd
+
+    - name: Build
+      run: cmake --build build --config Release
+      shell: cmd
+
+    - name: Package
+      run: |
+        mkdir package
+        copy build\Release\GB28181Client.exe package\
+        cd package
+        windeployqt GB28181Client.exe
+      shell: cmd
+      continue-on-error: true
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: GB28181Client-Windows-x64
+        path: package/
+        retention-days: 30
+
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          qt6-base-dev \
+          libavcodec-dev \
+          libavformat-dev \
+          libavutil-dev \
+          libswscale-dev \
+          libswresample-dev \
+          libexosip2-dev \
+          libosip2-dev
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -S . \
+          -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: cmake --build build --config Release -j$(nproc)
+
+    - name: Package
+      run: |
+        mkdir -p package
+        cp build/GB28181Client package/
+        chmod +x package/GB28181Client
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: GB28181Client-Linux-x64
+        path: package/
+        retention-days: 30

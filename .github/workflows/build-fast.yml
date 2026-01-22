@@ -1,0 +1,76 @@
+name: Build (Fast)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows-fast:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup vcpkg cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          C:/vcpkg/installed
+          C:/vcpkg/packages
+        key: ${{ runner.os }}-vcpkg-${{ hashFiles('**/vcpkg.json') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '6.5.3'
+        host: 'windows'
+        target: 'desktop'
+        arch: 'win64_msvc2019_64'
+        modules: 'qtmultimedia'
+        cache: true
+
+    - name: Setup vcpkg
+      run: |
+        git clone https://github.com/Microsoft/vcpkg.git C:/vcpkg
+        cd C:/vcpkg
+        ./bootstrap-vcpkg.bat
+        ./vcpkg integrate install
+      shell: cmd
+
+    - name: Install FFmpeg and eXosip2
+      run: |
+        C:/vcpkg/vcpkg install ffmpeg[core,avcodec,avformat,avutil,swscale]:x64-windows
+        C:/vcpkg/vcpkg install exosip:x64-windows
+      shell: cmd
+
+    - name: Configure
+      run: |
+        cmake -B build -G "Visual Studio 17 2022" -A x64 ^
+          -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake ^
+          -DCMAKE_PREFIX_PATH=${{ env.Qt6_DIR }} ^
+          -DCMAKE_BUILD_TYPE=Release
+      shell: cmd
+
+    - name: Build
+      run: cmake --build build --config Release --parallel
+      shell: cmd
+
+    - name: Collect DLLs
+      run: |
+        mkdir artifact
+        copy build\Release\GB28181Client.exe artifact\
+        ${{ env.Qt6_DIR }}\bin\windeployqt.exe artifact\GB28181Client.exe
+        copy C:\vcpkg\installed\x64-windows\bin\*.dll artifact\ 2>nul || echo "Some DLLs not found"
+      shell: cmd
+      continue-on-error: true
+
+    - name: Upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: GB28181Client-Windows-Release
+        path: artifact/
+        if-no-files-found: warn

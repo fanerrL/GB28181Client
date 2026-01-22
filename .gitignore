@@ -1,0 +1,102 @@
+# C++ 编译产物
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.exp
+*.pdb
+*.ilk
+
+# Qt 生成文件
+*.pro.user
+*.pro.user.*
+*.qm
+*.qrc.depends
+*.moc
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# CMake 生成文件
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# 构建目录
+build/
+build-*/
+debug/
+release/
+Debug/
+Release/
+x64/
+x86/
+out/
+
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Qt Creator
+*.autosave
+*.pro.user*
+
+# 临时文件
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# 依赖库（如果放在项目中）
+3rdparty/ffmpeg/
+3rdparty/exosip2/
+3rdparty/qt/
+
+# IDE 配置
+.vscode/
+.idea/
+*.code-workspace
+
+# 测试文件
+test_videos/
+test_data/
+
+# 文档生成
+docs/html/
+docs/latex/
+
+# 打包文件
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# 配置文件（包含敏感信息）
+config.ini
+*.conf
+
+# 日志文件
+logs/
+*.log
+
+# 备份文件
+*.bak
+*.backup
