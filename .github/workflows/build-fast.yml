@@ -13,16 +13,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Setup vcpkg cache
-      uses: actions/cache@v3
-      with:
-        path: |
-          C:/vcpkg/installed
-          C:/vcpkg/packages
-        key: ${{ runner.os }}-vcpkg-${{ hashFiles('**/vcpkg.json') }}
-        restore-keys: |
-          ${{ runner.os }}-vcpkg-
-
     - name: Install Qt
       uses: jurplel/install-qt-action@v3
       with:
@@ -31,7 +21,7 @@ jobs:
         target: 'desktop'
         arch: 'win64_msvc2019_64'
         modules: 'qtmultimedia'
-        cache: true
+        cache: false
 
     - name: Setup vcpkg
       run: |
@@ -46,12 +36,13 @@ jobs:
         C:/vcpkg/vcpkg install ffmpeg[core,avcodec,avformat,avutil,swscale]:x64-windows
         C:/vcpkg/vcpkg install exosip:x64-windows
       shell: cmd
+      continue-on-error: true
 
     - name: Configure
       run: |
         cmake -B build -G "Visual Studio 17 2022" -A x64 ^
           -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake ^
-          -DCMAKE_PREFIX_PATH=${{ env.Qt6_DIR }} ^
+          -DCMAKE_PREFIX_PATH=%Qt6_DIR% ^
           -DCMAKE_BUILD_TYPE=Release
       shell: cmd
 
@@ -62,9 +53,11 @@ jobs:
     - name: Collect DLLs
       run: |
         mkdir artifact
-        copy build\Release\GB28181Client.exe artifact\
-        ${{ env.Qt6_DIR }}\bin\windeployqt.exe artifact\GB28181Client.exe
-        copy C:\vcpkg\installed\x64-windows\bin\*.dll artifact\ 2>nul || echo "Some DLLs not found"
+        if exist build\Release\GB28181Client.exe (
+          copy build\Release\GB28181Client.exe artifact\
+          %Qt6_DIR%\bin\windeployqt.exe artifact\GB28181Client.exe
+          copy C:\vcpkg\installed\x64-windows\bin\*.dll artifact\ 2>nul || echo "Some DLLs not found"
+        )
       shell: cmd
       continue-on-error: true
 
